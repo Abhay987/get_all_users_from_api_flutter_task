@@ -1,6 +1,7 @@
+import 'dart:io';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:getallusersfromapi/api.dart';
-import 'package:getallusersfromapi/api_manager.dart';
 import 'package:getallusersfromapi/user_model.dart';
 
 class ShowData extends StatefulWidget {
@@ -11,39 +12,52 @@ class ShowData extends StatefulWidget {
 }
 
 class _ShowDataState extends State<ShowData> {
-  late Future<UserModel> userModel;
-  ApiManeger apiManeger = ApiManeger();
+   UserModel? userModel;
+  Dio _dio =Dio();
+  Future<void> getProfile() async {
+    try {
+      var response = await _dio.get(API.getAllUser);
+      if (response.statusCode == 200) {
+        userModel = UserModel.fromJson(response.data);
+      }
+    } on DioError catch (e) {
+      if(e.runtimeType == SocketException) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Check Internet Connection')));
+      }
+      else {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Something Wrong ! Please try again later')));
+      }
+    }
+  }
   @override
   void initState() {
-    getData();
     super.initState();
-  }
-
-  getData() async {
-    userModel = apiManeger.submit(context);
+    getProfile();
   }
 
   @override
   Widget build(BuildContext context) {
-    debugPrint('the user model data is : $userModel');
+    debugPrint('the user model data is : ${userModel!.totalPages}');
     return Scaffold(
       appBar: AppBar(
         title: const Text('Get Users'),
       ),
-      body: FutureBuilder<UserModel>(
-        future: userModel,
-        builder: (context, snapshot) {
-          if (snapshot.hasData) {
-            return Text('${snapshot.data!.page}');
-            /*   return ListView.builder(itemCount: snapshot.data!["data"].length,itemBuilder: (context,index){
-      return ListTile(title: Text('${snapshot.data!['data']}'),);
-    },);*/
-          } else if (snapshot.hasError) {
-            return Text('${snapshot.hasError}');
+      body: ListView.builder(itemCount: userModel!.data.length,
+          itemBuilder: (context,index){
+        if(userModel?.data[index].firstName == null)
+          {
+            return const ListTile(
+              leading: Text('null'),
+              title: Text('null'),
+              trailing: Text('null'),
+            );
           }
-          return const Center(child: CircularProgressIndicator());
-        },
-      ),
+        return ListTile(
+          leading: Text('${userModel!.data[index].id}'),
+          title: Text(userModel!.data[index].firstName),
+          trailing: Text(userModel!.data[index].email),
+        );
+      }),
     );
   }
 }
